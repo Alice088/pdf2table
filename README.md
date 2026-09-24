@@ -20,9 +20,9 @@ go build -o pdf2table .
 ## Usage
 
 ```sh
-pdf2table input.pdf                # every table -> input.tableN.{csv,md,html,json}
-pdf2table input.pdf output.csv     # one table -> output.csv
-pdf2table input.pdf output.html    # format is taken from the extension
+pdf2table input.pdf                # every table -> input.tableN.{xlsx,csv,md,html,json}
+pdf2table input.pdf output.xlsx    # one table -> output.xlsx
+pdf2table input.pdf output.csv     # format is taken from the extension
 ```
 
 In single-file mode the largest table is exported; `-table N` picks another one.
@@ -33,10 +33,12 @@ Flags:
 |------|---------|---------|
 | `-table` | `0` | table number to export in single-file mode (0 = largest) |
 | `-o` | directory of the input file | output directory (directory mode) |
-| `-format` | `csv,md,html,json` | formats (directory mode) |
-| `-fill` | `false` | repeat merged cell values in every spanned cell (csv/md) |
+| `-format` | `xlsx,csv,md,html,json` | formats (directory mode) |
+| `-split` | `false` | do not merge continuation pages; one table per PDF page |
+| `-raw` | `false` | keep the raw grid (multi-row header, empty columns) in csv/md |
+| `-fill` | `false` | `-raw` only: repeat merged cell values in every spanned cell |
 
-The output format is inferred from the extension: `.csv`, `.md`, `.html`, `.json`.
+The output format is inferred from the extension: `.xlsx`, `.csv`, `.md`, `.html`, `.json`.
 
 Examples:
 
@@ -50,10 +52,19 @@ pdf2table -fill document.pdf
 
 ## Outputs
 
-* `csv`  — one row per table row, one column per grid column; merged values
-  appear once (in the top-left cell) unless `-fill` is given.
+`csv` and `md` are **normalized**: the multi-level header is flattened into a
+single header row (`Курс 1 / Семестр 1 / Лек`), merged values are repeated in
+every row they span, and columns that are empty everywhere are dropped.
+Pass `-raw` to get the untouched grid instead (multi-row header, every grid
+column, merged values only in the top-left cell).
+
+* `xlsx` — Excel workbook with two sheets:
+  * **Layout** — the table exactly as drawn in the PDF: every grid cell, real
+    merged cells (`MergeCell`), borders, bold frozen header.
+  * **Flat** — the normalized single-header table.
+* `csv`  — one row per table row, one column per logical column.
 * `md`   — GitHub-flavoured Markdown.
-* `html` — full fidelity, preserves `rowspan`/`colspan` and header rows.
+* `html` — full fidelity, preserves `rowspan`/`colspan` and the header block.
 * `json` — `{rows, cols, cells:[{row,col,rowspan,colspan,text}]}`.
 
 ## How it works
@@ -69,7 +80,8 @@ pdf2table -fill document.pdf
 4. Text is read run by run, positioned by its baseline, and placed into the
    merged cell that contains it.
 5. Pages of the same table (equal column grid) are concatenated; a repeated
-   header block on continuation pages is dropped.
+   header block on continuation pages is dropped. Pass `-split` to keep every
+   PDF page as its own table instead.
 
 ## Notes and limitations
 

@@ -68,7 +68,7 @@ func pageRuns(c pdf.Content) []TextRun {
 		t := c.Text[i]
 		j := i
 		var sb strings.Builder
-		for j < len(c.Text) && c.Text[j].X == t.X && c.Text[j].Y == t.Y {
+		for j < len(c.Text) && absf(c.Text[j].X-t.X) <= coordTol && absf(c.Text[j].Y-t.Y) <= coordTol {
 			sb.WriteString(c.Text[j].S)
 			j++
 		}

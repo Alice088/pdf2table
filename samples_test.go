@@ -213,6 +213,32 @@ func TestSampleTablesAndNormalize(t *testing.T) {
 	}
 }
 
+func TestSamplePlanHeader(t *testing.T) {
+	dir, docs := rangeSamples(t)
+	for _, g := range docs {
+		g := g
+		t.Run(g.file, func(t *testing.T) {
+			d := loadDoc(t, filepath.Join(dir, g.file))
+			plan := largest(t, d)
+			hdr, _ := plan.Normalize()
+			index, name, semester := false, false, false
+			for _, h := range hdr {
+				switch {
+				case h == "Индекс":
+					index = true
+				case h == "Наименование":
+					name = true
+				case strings.HasPrefix(h, "Курс 1 / Семестр 1"):
+					semester = true
+				}
+			}
+			if !index || !name || !semester {
+				t.Fatalf("plan header index=%v name=%v semester=%v: %q", index, name, semester, hdr)
+			}
+		})
+	}
+}
+
 func TestSampleGoldenPlan(t *testing.T) {
 	dir, _ := rangeSamples(t)
 	path := filepath.Join(dir, "09.02.12_26_00.04-эцп.pdf")

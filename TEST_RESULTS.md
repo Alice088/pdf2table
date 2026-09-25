@@ -8,6 +8,50 @@
 
 ---
 
+## Прогон: 2026-09-25 11:42 MSK (+0300)
+
+- Изменения:
+  - `extract.go` — `pageRuns` группирует глифы по допуску `coordTol`, а не по точному равенству X/Y (в части PDF координаты глифов «плавают» на ±0.05); текст ячейки больше не рассыпается на символы.
+  - `output.go` — `rowIsHeader` сравнивает текст без внутренних пробелов; строка заголовка теперь распознаётся, даже если глифы разнесены пробелами.
+  - `samples_test.go` — новый `TestSamplePlanHeader` (семантическая проверка шапки плана на всех образцах).
+- Команды:
+  - `gofmt -l .`
+  - `PDF2TABLE_SAMPLES=/home/fworld/energydocs go test ./... -v`
+- Go: `go1.27.1 linux/amd64`
+- Ветка: `main`
+
+| # | Тест | Пакет | Результат | Время |
+|---|------|-------|-----------|-------|
+| 1 | TestPublicAPI | github.com/Alice088/pdf2table | PASS | 1.72s |
+| 2 | TestUniqueSorted | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 3 | TestBand | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 4 | TestCleanText | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 5 | TestPageRunsGroupsChars | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 6 | TestParseSpecialty | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 7 | TestMetaPairs | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 8 | TestLargestTable | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 9 | TestSampleMetadata | github.com/Alice088/pdf2table | PASS | 15.23s |
+| 10 | TestSampleTextIsNotLost | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 11 | TestSampleTablesAndNormalize | github.com/Alice088/pdf2table | PASS | 0.01s |
+| 12 | TestSamplePlanHeader | github.com/Alice088/pdf2table | PASS | 0.01s |
+| 13 | TestSampleGoldenPlan | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 14 | TestSampleSplit | github.com/Alice088/pdf2table | PASS | 14.58s |
+| 15 | TestSampleWriters | github.com/Alice088/pdf2table | PASS | 0.96s |
+
+### Сводка
+
+- Всего: 15
+- PASS: 15
+- FAIL: 0
+- SKIP: 0
+- Время: 32.514s
+
+### Падения
+
+нет
+
+---
+
 ## Прогон: 2026-09-25 07:17 MSK (+0300)
 
 | # | Тест | Пакет | Результат | Время |

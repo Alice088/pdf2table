@@ -18,7 +18,7 @@ func rowIsHeader(t *Table, r int) bool {
 	var sb strings.Builder
 	for c := 0; c < t.Cols; c++ {
 		if cell := t.Grid[r][c]; cell != nil {
-			sb.WriteString(strings.ToLower(cell.Text))
+			sb.WriteString(strings.Join(strings.Fields(strings.ToLower(cell.Text)), ""))
 			sb.WriteByte(' ')
 		}
 	}

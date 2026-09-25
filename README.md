@@ -65,7 +65,38 @@ column, merged values only in the top-left cell).
 * `csv`  — one row per table row, one column per logical column.
 * `md`   — GitHub-flavoured Markdown.
 * `html` — full fidelity, preserves `rowspan`/`colspan` and the header block.
-* `json` — `{rows, cols, cells:[{row,col,rowspan,colspan,text}]}`.
+* `json` — `{specialty_code, specialty_name, rows, cols, cells:[{row,col,rowspan,colspan,text}]}`.
+
+The specialty code and title are parsed from the plan heading
+(`09.02.12 ТЕХНИЧЕСКАЯ ЭКСПЛУАТАЦИЯ И СОПРОВОЖДЕНИЕ ИНФОРМАЦИОННЫХ СИСТЕМ`,
+optionally prefixed with `Направление`) on the cover page and emitted for every
+table of the document:
+
+* `csv`, `md`, `html` and the `Flat` xlsx sheet — two rows above the table:
+  `Код специальности` / `Название специальности`;
+* `json` — the top-level `specialty_code` / `specialty_name` fields.
+
+If the heading is absent, no metadata rows are emitted. In `csv` the metadata
+rows are padded with empty fields to the table width so every record has the
+same number of fields.
+
+## Tests
+
+The suite runs against the 13 golden PDFs in `../energydocs` (override with
+`PDF2TABLE_SAMPLES=<dir>`). For each document it checks:
+
+* the specialty code and title metadata;
+* that no text run inside a table grid is dropped;
+* that the main table merges tile the grid exactly (no overlaps or gaps);
+* that normalized columns are never empty;
+* golden curriculum rows for `09.02.12`;
+* `-split` mode;
+* every output format (csv/md/html/json/xlsx), including metadata and
+determinism.
+
+```sh
+PDF2TABLE_SAMPLES=../energydocs go test ./...
+```
 
 ## How it works
 
@@ -79,7 +110,9 @@ column, merged values only in the top-left cell).
    producing the exact merged-cell layout.
 4. Text is read run by run, positioned by its baseline, and placed into the
    merged cell that contains it.
-5. Pages of the same table (equal column grid) are concatenated; a repeated
+5. The `код специальности` / specialty title heading on the cover page is read
+   as document metadata and prepended to every table output.
+6. Pages of the same table (equal column grid) are concatenated; a repeated
    header block on continuation pages is dropped. Pass `-split` to keep every
    PDF page as its own table instead.
 

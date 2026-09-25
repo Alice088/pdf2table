@@ -1,12 +1,9 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/ledongthuc/pdf"
-	"github.com/xuri/excelize/v2"
 )
 
 func TestUniqueSorted(t *testing.T) {
@@ -70,95 +67,36 @@ func TestPageRunsGroupsChars(t *testing.T) {
 	}
 }
 
-func samplePDF() string {
-	candidates := []string{
-		os.Getenv("PDF2TABLE_SAMPLE"),
-		"testdata/document.pdf",
-		"/home/fworld/document.pdf",
-		"../document.pdf",
+func TestParseSpecialty(t *testing.T) {
+	cases := []struct {
+		in   string
+		code string
+		name string
+		ok   bool
+	}{
+		{"09.02.12 ТЕХНИЧЕСКАЯ ЭКСПЛУАТАЦИЯ И СОПРОВОЖДЕНИЕ ИНФОРМАЦИОННЫХ СИСТЕМ", "09.02.12", "ТЕХНИЧЕСКАЯ ЭКСПЛУАТАЦИЯ И СОПРОВОЖДЕНИЕ ИНФОРМАЦИОННЫХ СИСТЕМ", true},
+		{"Направление 11.02.15 ИНФОКОММУНИКАЦИОННЫЕ СЕТИ И СИСТЕМЫ СВЯЗИ", "11.02.15", "ИНФОКОММУНИКАЦИОННЫЕ СЕТИ И СИСТЕМЫ СВЯЗИ", true},
+		{"18.02.13ТЕХНОЛОГИЯ ПРОИЗВОДСТВА ИЗДЕЛИЙ ИЗ ПОЛИМЕРНЫХ КОМПОЗИТОВ", "18.02.13", "ТЕХНОЛОГИЯ ПРОИЗВОДСТВА ИЗДЕЛИЙ ИЗ ПОЛИМЕРНЫХ КОМПОЗИТОВ", true},
+		{"План Учебный план ППССЗ СПО '09.02.12_26_00.04.plx', код специальности 09.02.12", "", "", false},
+		{"№ 184 от 10.03.2025", "", "", false},
+		{"Протокол № 5 от 07.05.2026", "", "", false},
+		{"Основы спутникового метеорологического обеспечения", "", "", false},
 	}
-	for _, p := range candidates {
-		if p == "" {
-			continue
+	for _, c := range cases {
+		code, name, ok := parseSpecialty(c.in)
+		if ok != c.ok || code != c.code || name != c.name {
+			t.Errorf("parseSpecialty(%q)=(%q,%q,%v) want (%q,%q,%v)", c.in, code, name, ok, c.code, c.name, c.ok)
 		}
-		if st, err := os.Stat(p); err == nil && !st.IsDir() {
-			return p
-		}
-	}
-	return ""
-}
-
-func loadTables(t *testing.T) []*Table {
-	t.Helper()
-	path := samplePDF()
-	if path == "" {
-		t.Skip("sample PDF not found")
-	}
-	f, r, err := pdf.Open(path)
-	if err != nil {
-		t.Fatalf("open %s: %v", filepath.Base(path), err)
-	}
-	t.Cleanup(func() { f.Close() })
-	return buildTables(r, false)
-}
-
-func TestSampleTables(t *testing.T) {
-	tables := loadTables(t)
-	if len(tables) != 2 {
-		t.Fatalf("tables=%d want 2", len(tables))
-	}
-	plan := tables[1]
-	if plan.Rows != 99 || plan.Cols != 93 {
-		t.Fatalf("plan %dx%d want 99x93", plan.Rows, plan.Cols)
-	}
-	area := 0
-	for _, c := range plan.Cells {
-		area += c.RowSpan * c.ColSpan
-	}
-	if area != plan.Rows*plan.Cols {
-		t.Fatalf("merged cells overlap or leave gaps: area=%d full=%d", area, plan.Rows*plan.Cols)
 	}
 }
 
-func TestSplitTables(t *testing.T) {
-	path := samplePDF()
-	if path == "" {
-		t.Skip("sample PDF not found")
+func TestMetaPairs(t *testing.T) {
+	if got := (*Meta)(nil).pairs(); got != nil {
+		t.Fatalf("nil meta pairs=%v", got)
 	}
-	f, r, err := pdf.Open(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-
-	merged := buildTables(r, false)
-	if len(merged) != 2 {
-		t.Fatalf("merged tables=%d want 2", len(merged))
-	}
-	split := buildTables(r, true)
-	if len(split) != 3 {
-		t.Fatalf("split tables=%d want 3", len(split))
-	}
-	third := split[2]
-	if third.Rows != 8 || third.Cols != 93 {
-		t.Fatalf("page 4 table %dx%d want 8x93", third.Rows, third.Cols)
-	}
-	header, rows := third.normalize()
-	_ = header
-	found := false
-	for _, row := range rows {
-		for _, v := range row {
-			if v == "ПП.07" {
-				found = true
-			}
-		}
-	}
-	if !found {
-		t.Fatal("page 4 table does not contain ПП.07")
-	}
-	_, lastRows := merged[1].normalize()
-	if len(lastRows) == 0 {
-		t.Fatal("merged plan has no data rows")
+	got := (&Meta{Code: "09.02.12", Name: "ТЕХНИЧЕСКАЯ"}).pairs()
+	if len(got) != 2 || got[0][0] != "Код специальности" || got[0][1] != "09.02.12" || got[1][0] != "Название специальности" || got[1][1] != "ТЕХНИЧЕСКАЯ" {
+		t.Fatalf("pairs=%v", got)
 	}
 }
 
@@ -166,136 +104,5 @@ func TestLargestTable(t *testing.T) {
 	tables := []*Table{{Rows: 30, Cols: 9}, {Rows: 99, Cols: 93}, {Rows: 5, Cols: 5}}
 	if got := largestTable(tables); got != 2 {
 		t.Fatalf("largest=%d want 2", got)
-	}
-}
-
-func TestNormalize(t *testing.T) {
-	tables := loadTables(t)
-	if len(tables) < 2 {
-		t.Skip("plan table not available")
-	}
-	plan := tables[1]
-	hdr, rows := plan.normalize()
-	h := headerRowCount(plan)
-	if len(rows) != plan.Rows-h {
-		t.Fatalf("data rows=%d want %d", len(rows), plan.Rows-h)
-	}
-	idx := map[string]int{}
-	for i, name := range hdr {
-		idx[name] = i
-	}
-	for _, want := range []string{"Индекс", "Наименование", "Курс 1 / Семестр 1 / Итого", "Курс 4 / Семестр 8 / ПАтт"} {
-		if _, ok := idx[want]; !ok {
-			t.Fatalf("header %q missing in %v", want, hdr)
-		}
-	}
-	seen := false
-	for _, r := range rows {
-		if r[idx["Индекс"]] == "ОУП.01" {
-			seen = true
-			if r[idx["Наименование"]] != "Русский язык" {
-				t.Fatalf("ОУП.01 name=%q", r[idx["Наименование"]])
-			}
-			if r[idx["Итого акад.часов / По плану"]] != "102" {
-				t.Fatalf("ОУП.01 plan=%q", r[idx["Итого акад.часов / По плану"]])
-			}
-		}
-	}
-	if !seen {
-		t.Fatal("ОУП.01 row not found")
-	}
-	for c := range hdr {
-		empty := true
-		for _, r := range rows {
-			if r[c] != "" {
-				empty = false
-				break
-			}
-		}
-		if empty {
-			t.Fatalf("normalized column %d (%q) is empty", c, hdr[c])
-		}
-	}
-}
-
-func TestWriteXLSX(t *testing.T) {
-	tables := loadTables(t)
-	if len(tables) < 2 {
-		t.Skip("plan table not available")
-	}
-	plan := tables[1]
-
-	path := filepath.Join(t.TempDir(), "plan.xlsx")
-	if err := writeXLSX(path, plan); err != nil {
-		t.Fatalf("writeXLSX: %v", err)
-	}
-	f, err := excelize.OpenFile(path)
-	if err != nil {
-		t.Fatalf("open xlsx: %v", err)
-	}
-	defer f.Close()
-
-	for _, sheet := range []string{layoutSheet, flatSheet} {
-		if idx, err := f.GetSheetIndex(sheet); err != nil || idx < 0 {
-			t.Fatalf("sheet %q missing", sheet)
-		}
-	}
-	merges, err := f.GetMergeCells(layoutSheet)
-	if err != nil {
-		t.Fatalf("merges: %v", err)
-	}
-	if len(merges) < 20 {
-		t.Fatalf("too few merged cells: %d", len(merges))
-	}
-	flat, err := f.GetRows(flatSheet)
-	if err != nil {
-		t.Fatalf("flat rows: %v", err)
-	}
-	if len(flat) != 97 {
-		t.Fatalf("flat rows=%d want 97", len(flat))
-	}
-	found := false
-	for _, row := range flat {
-		if len(row) > 2 && row[1] == "ОУП.01" && row[2] == "Русский язык" {
-			found = true
-		}
-	}
-	if !found {
-		t.Fatal("ОУП.01 / Русский язык not found in Flat sheet")
-	}
-}
-
-func TestSamplePlanValues(t *testing.T) {
-	tables := loadTables(t)
-	if len(tables) < 2 {
-		t.Skip("plan table not available")
-	}
-	plan := tables[1]
-	want := map[string]string{
-		"ОУП.01":    "Русский язык",
-		"ОГСЭ.03":   "Иностранный язык в профессиональной деятельности",
-		"МДК.07.02": "Основы спутникового метеорологического обеспечения",
-		"ГИА.01":    "Государственная итоговая аттестация",
-	}
-	codeAt := map[string]*Cell{}
-	for _, c := range plan.Cells {
-		codeAt[c.Text] = c
-	}
-	for code, name := range want {
-		base := codeAt[code]
-		if base == nil {
-			t.Fatalf("code %q not found", code)
-		}
-		var nearest *Cell
-		for _, cand := range plan.Cells {
-			if cand.Row == base.Row && cand.Col > base.Col {
-				if nearest == nil || cand.Col < nearest.Col {
-					nearest = cand
-				}
-			}
-		}
-		if nearest == nil || nearest.Text != name {
-			t.Fatalf("%s neighbour=%v want %q", code, nearest, name)
-		}
 	}
 }

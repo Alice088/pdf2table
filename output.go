@@ -48,8 +48,24 @@ func headerRowCount(t *Table) int {
 
 func writeCSV(w io.Writer, t *Table, fill, raw bool) error {
 	cw := csv.NewWriter(w)
+	var hdr []string
+	var rows [][]string
+	width := t.Cols
 	if !raw {
-		hdr, rows := t.normalize()
+		hdr, rows = t.normalize()
+		width = len(hdr)
+	}
+	if width < 2 {
+		width = 2
+	}
+	for _, p := range t.Meta.pairs() {
+		rec := make([]string, width)
+		rec[0], rec[1] = p[0], p[1]
+		if err := cw.Write(rec); err != nil {
+			return err
+		}
+	}
+	if !raw {
 		if err := cw.Write(hdr); err != nil {
 			return err
 		}
@@ -62,7 +78,7 @@ func writeCSV(w io.Writer, t *Table, fill, raw bool) error {
 		return cw.Error()
 	}
 	occ := t.occupancy()
-	rec := make([]string, t.Cols)
+	rec := make([]string, width)
 	for r := 0; r < t.Rows; r++ {
 		for c := 0; c < t.Cols; c++ {
 			cell := occ[r][c]
@@ -127,6 +143,20 @@ func writeMarkdown(w io.Writer, t *Table, fill, raw bool) error {
 		_, err := io.WriteString(w, sb.String())
 		return err
 	}
+	if pairs := t.Meta.pairs(); len(pairs) > 0 {
+		if err := writeRow(pairs[0][:]); err != nil {
+			return err
+		}
+		if err := writeRow([]string{"---", "---"}); err != nil {
+			return err
+		}
+		for _, p := range pairs[1:] {
+			if err := writeRow(p[:]); err != nil {
+				return err
+			}
+		}
+		io.WriteString(w, "\n")
+	}
 	if err := writeRow(header); err != nil {
 		return err
 	}
@@ -151,6 +181,13 @@ func writeHTML(w io.Writer, t *Table) error {
 	skip := make([][]bool, t.Rows)
 	for r := range skip {
 		skip[r] = make([]bool, t.Cols)
+	}
+	if pairs := t.Meta.pairs(); len(pairs) > 0 {
+		io.WriteString(w, "<table border=\"1\" cellspacing=\"0\" cellpadding=\"2\">\n")
+		for _, p := range pairs {
+			fmt.Fprintf(w, "<tr><td>%s</td><td>%s</td></tr>\n", html.EscapeString(p[0]), html.EscapeString(p[1]))
+		}
+		io.WriteString(w, "</table>\n<br>\n")
 	}
 	io.WriteString(w, "<table border=\"1\" cellspacing=\"0\" cellpadding=\"2\">\n")
 	for r := 0; r < t.Rows; r++ {
@@ -224,13 +261,19 @@ type jsonCell struct {
 }
 
 type jsonTable struct {
-	Rows  int        `json:"rows"`
-	Cols  int        `json:"cols"`
-	Cells []jsonCell `json:"cells"`
+	SpecialtyCode string     `json:"specialty_code,omitempty"`
+	SpecialtyName string     `json:"specialty_name,omitempty"`
+	Rows          int        `json:"rows"`
+	Cols          int        `json:"cols"`
+	Cells         []jsonCell `json:"cells"`
 }
 
 func writeJSON(w io.Writer, t *Table) error {
 	jt := jsonTable{Rows: t.Rows, Cols: t.Cols}
+	if t.Meta != nil {
+		jt.SpecialtyCode = t.Meta.Code
+		jt.SpecialtyName = t.Meta.Name
+	}
 	for _, c := range t.Cells {
 		jt.Cells = append(jt.Cells, jsonCell{
 			Row:     c.Row,

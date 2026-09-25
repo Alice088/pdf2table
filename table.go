@@ -19,6 +19,7 @@ type Table struct {
 	Xs    []float64
 	Grid  [][]*Cell
 	Cells []*Cell
+	Meta  *Meta
 }
 
 type box struct {
@@ -164,6 +165,7 @@ func appendTable(dst, src *Table, skip map[string]bool) {
 }
 
 func buildTables(r *pdf.Reader, split bool) []*Table {
+	meta := extractMeta(r)
 	var tables []*Table
 	var cur *Table
 	for p := 1; p <= r.NumPage(); p++ {
@@ -177,6 +179,9 @@ func buildTables(r *pdf.Reader, split bool) []*Table {
 		}
 		cur = t
 		tables = append(tables, cur)
+	}
+	for _, t := range tables {
+		t.Meta = meta
 	}
 	return tables
 }

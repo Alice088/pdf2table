@@ -66,10 +66,20 @@ func writeLayoutSheet(f *excelize.File, t *Table) error {
 
 func writeFlatSheet(f *excelize.File, t *Table) error {
 	header, rows := t.normalize()
+	pairs := t.Meta.pairs()
+	for i, p := range pairs {
+		if err := f.SetCellValue(flatSheet, cellName(1, i+1), p[0]); err != nil {
+			return err
+		}
+		if err := f.SetCellValue(flatSheet, cellName(2, i+1), p[1]); err != nil {
+			return err
+		}
+	}
+	headerRow := len(pairs) + 1
 	widths := make([]int, len(header))
 	for i, h := range header {
 		widths[i] = len([]rune(h))
-		if err := f.SetCellValue(flatSheet, cellName(i+1, 1), h); err != nil {
+		if err := f.SetCellValue(flatSheet, cellName(i+1, headerRow), h); err != nil {
 			return err
 		}
 	}
@@ -81,12 +91,12 @@ func writeFlatSheet(f *excelize.File, t *Table) error {
 			if n := len([]rune(v)); n > widths[i] {
 				widths[i] = n
 			}
-			if err := f.SetCellValue(flatSheet, cellName(i+1, r+2), v); err != nil {
+			if err := f.SetCellValue(flatSheet, cellName(i+1, headerRow+1+r), v); err != nil {
 				return err
 			}
 		}
 	}
-	if err := styleSheet(f, flatSheet, len(rows)+1, len(header), 1, widths); err != nil {
+	if err := styleSheet(f, flatSheet, headerRow+len(rows), len(header), headerRow, widths); err != nil {
 		return err
 	}
 	return nil

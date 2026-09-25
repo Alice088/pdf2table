@@ -1,4 +1,4 @@
-package main
+package pdf2table
 
 import (
 	"testing"
@@ -83,7 +83,7 @@ func TestParseSpecialty(t *testing.T) {
 		{"Основы спутникового метеорологического обеспечения", "", "", false},
 	}
 	for _, c := range cases {
-		code, name, ok := parseSpecialty(c.in)
+		code, name, ok := ParseSpecialty(c.in)
 		if ok != c.ok || code != c.code || name != c.name {
 			t.Errorf("parseSpecialty(%q)=(%q,%q,%v) want (%q,%q,%v)", c.in, code, name, ok, c.code, c.name, c.ok)
 		}
@@ -91,10 +91,10 @@ func TestParseSpecialty(t *testing.T) {
 }
 
 func TestMetaPairs(t *testing.T) {
-	if got := (*Meta)(nil).pairs(); got != nil {
+	if got := (*Meta)(nil).Pairs(); got != nil {
 		t.Fatalf("nil meta pairs=%v", got)
 	}
-	got := (&Meta{Code: "09.02.12", Name: "ТЕХНИЧЕСКАЯ"}).pairs()
+	got := (&Meta{Code: "09.02.12", Name: "ТЕХНИЧЕСКАЯ"}).Pairs()
 	if len(got) != 2 || got[0][0] != "Код специальности" || got[0][1] != "09.02.12" || got[1][0] != "Название специальности" || got[1][1] != "ТЕХНИЧЕСКАЯ" {
 		t.Fatalf("pairs=%v", got)
 	}
@@ -102,7 +102,7 @@ func TestMetaPairs(t *testing.T) {
 
 func TestLargestTable(t *testing.T) {
 	tables := []*Table{{Rows: 30, Cols: 9}, {Rows: 99, Cols: 93}, {Rows: 5, Cols: 5}}
-	if got := largestTable(tables); got != 2 {
+	if got := Largest(tables); got != 2 {
 		t.Fatalf("largest=%d want 2", got)
 	}
 }

@@ -1,4 +1,4 @@
-package main
+package pdf2table
 
 import (
 	"sort"
@@ -186,7 +186,7 @@ func buildTables(r *pdf.Reader, split bool) []*Table {
 	return tables
 }
 
-func (t *Table) occupancy() [][]*Cell {
+func (t *Table) Occupancy() [][]*Cell {
 	occ := make([][]*Cell, t.Rows)
 	for r := range occ {
 		occ[r] = make([]*Cell, t.Cols)
@@ -210,17 +210,17 @@ func collapse(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-type span struct {
-	r0, c0, r1, c1 int
+type Span struct {
+	R0, C0, R1, C1 int
 }
 
-func (t *Table) spans() []span {
-	occ := t.occupancy()
+func (t *Table) Spans() []Span {
+	occ := t.Occupancy()
 	skip := make([][]bool, t.Rows)
 	for r := range skip {
 		skip[r] = make([]bool, t.Cols)
 	}
-	out := make([]span, 0, len(t.Cells))
+	out := make([]Span, 0, len(t.Cells))
 	for r := 0; r < t.Rows; r++ {
 		for c := 0; c < t.Cols; c++ {
 			if skip[r][c] {
@@ -254,15 +254,15 @@ func (t *Table) spans() []span {
 					skip[r+rr][c+cc] = true
 				}
 			}
-			out = append(out, span{r, c, r + rs - 1, c + cs - 1})
+			out = append(out, Span{r, c, r + rs - 1, c + cs - 1})
 		}
 	}
 	return out
 }
 
-func (t *Table) normalize() ([]string, [][]string) {
+func (t *Table) Normalize() ([]string, [][]string) {
 	h := headerRowCount(t)
-	occ := t.occupancy()
+	occ := t.Occupancy()
 
 	paths := make([]string, t.Cols)
 	for c := 0; c < t.Cols; c++ {

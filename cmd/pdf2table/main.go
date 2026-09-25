@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ledongthuc/pdf"
+	pdf2table "github.com/Alice088/pdf2table"
 )
 
 func main() {
@@ -40,47 +40,37 @@ func main() {
 	}
 }
 
-func openTables(input string, split bool) (*os.File, []*Table, error) {
-	f, r, err := pdf.Open(input)
+func openTables(input string, split bool) ([]*pdf2table.Table, error) {
+	tables, err := pdf2table.ParseFile(input, pdf2table.WithSplit(split))
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	tables := buildTables(r, split)
 	if len(tables) == 0 {
-		f.Close()
-		return nil, nil, fmt.Errorf("no tables found in %s", input)
+		return nil, fmt.Errorf("no tables found in %s", input)
 	}
-	return f, tables, nil
+	return tables, nil
 }
 
 func runSingle(input, out string, fill, raw, split bool, sel int) error {
-	f, tables, err := openTables(input, split)
+	tables, err := openTables(input, split)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-
 	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(out), "."))
-	if ext == "" {
-		ext = "csv"
-	}
 	switch ext {
-	case "xlsx", "csv", "md", "html", "json":
+	case "", "xlsx", "csv", "md", "html", "json":
 	default:
 		return fmt.Errorf("unsupported output extension %q: use .xlsx, .csv, .md, .html or .json", filepath.Ext(out))
 	}
 	idx := sel
 	if idx == 0 {
-		idx = largestTable(tables)
+		idx = pdf2table.Largest(tables)
 	}
 	if idx < 1 || idx > len(tables) {
 		return fmt.Errorf("table %d out of range: found %d", sel, len(tables))
 	}
 	t := tables[idx-1]
-	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
-		return err
-	}
-	if err := writeOne(out, ext, t, fill, raw); err != nil {
+	if err := t.WriteFile(out, pdf2table.WithFill(fill), pdf2table.WithRaw(raw)); err != nil {
 		return err
 	}
 	fmt.Fprintf(os.Stderr, "table %d/%d: %d rows x %d cols -> %s\n", idx, len(tables), t.Rows, t.Cols, out)
@@ -88,12 +78,10 @@ func runSingle(input, out string, fill, raw, split bool, sel int) error {
 }
 
 func runAll(input, outDir, formats string, fill, raw, split bool) error {
-	f, tables, err := openTables(input, split)
+	tables, err := openTables(input, split)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-
 	if outDir == "" {
 		outDir = filepath.Dir(input)
 	}
@@ -101,21 +89,12 @@ func runAll(input, outDir, formats string, fill, raw, split bool) error {
 		return err
 	}
 	base := strings.TrimSuffix(filepath.Base(input), filepath.Ext(input))
-	var want []string
-	seen := map[string]bool{}
-	for _, p := range strings.Split(formats, ",") {
-		p = strings.TrimSpace(strings.ToLower(p))
-		if p != "" && !seen[p] {
-			seen[p] = true
-			want = append(want, p)
-		}
-	}
 	for i, t := range tables {
 		fmt.Fprintf(os.Stderr, "table %d: %d rows x %d cols\n", i+1, t.Rows, t.Cols)
 		name := fmt.Sprintf("%s.table%d", base, i+1)
-		for _, ext := range want {
+		for _, ext := range parseFormats(formats) {
 			path := filepath.Join(outDir, name+"."+ext)
-			if err := writeOne(path, ext, t, fill, raw); err != nil {
+			if err := t.WriteFile(path, pdf2table.WithFill(fill), pdf2table.WithRaw(raw)); err != nil {
 				return err
 			}
 			fmt.Fprintln(os.Stderr, "  wrote", path)
@@ -124,34 +103,15 @@ func runAll(input, outDir, formats string, fill, raw, split bool) error {
 	return nil
 }
 
-func largestTable(tables []*Table) int {
-	best, bestArea := 1, -1
-	for i, t := range tables {
-		if area := t.Rows * t.Cols; area > bestArea {
-			best, bestArea = i+1, area
+func parseFormats(formats string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, p := range strings.Split(formats, ",") {
+		p = strings.TrimSpace(strings.ToLower(p))
+		if p != "" && !seen[p] {
+			seen[p] = true
+			out = append(out, p)
 		}
 	}
-	return best
-}
-
-func writeOne(path, ext string, t *Table, fill, raw bool) error {
-	if ext == "xlsx" {
-		return writeXLSX(path, t)
-	}
-	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	switch ext {
-	case "csv":
-		return writeCSV(f, t, fill, raw)
-	case "md":
-		return writeMarkdown(f, t, fill, raw)
-	case "html":
-		return writeHTML(f, t)
-	case "json":
-		return writeJSON(f, t)
-	}
-	return fmt.Errorf("unknown format %q", ext)
+	return out
 }

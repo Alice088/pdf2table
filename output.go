@@ -1,4 +1,4 @@
-package main
+package pdf2table
 
 import (
 	"encoding/csv"
@@ -52,13 +52,13 @@ func writeCSV(w io.Writer, t *Table, fill, raw bool) error {
 	var rows [][]string
 	width := t.Cols
 	if !raw {
-		hdr, rows = t.normalize()
+		hdr, rows = t.Normalize()
 		width = len(hdr)
 	}
 	if width < 2 {
 		width = 2
 	}
-	for _, p := range t.Meta.pairs() {
+	for _, p := range t.Meta.Pairs() {
 		rec := make([]string, width)
 		rec[0], rec[1] = p[0], p[1]
 		if err := cw.Write(rec); err != nil {
@@ -77,7 +77,7 @@ func writeCSV(w io.Writer, t *Table, fill, raw bool) error {
 		cw.Flush()
 		return cw.Error()
 	}
-	occ := t.occupancy()
+	occ := t.Occupancy()
 	rec := make([]string, width)
 	for r := 0; r < t.Rows; r++ {
 		for c := 0; c < t.Cols; c++ {
@@ -112,9 +112,9 @@ func writeMarkdown(w io.Writer, t *Table, fill, raw bool) error {
 	var header []string
 	var rows [][]string
 	if !raw {
-		header, rows = t.normalize()
+		header, rows = t.Normalize()
 	} else {
-		occ := t.occupancy()
+		occ := t.Occupancy()
 		header = make([]string, t.Cols)
 		for c := 0; c < t.Cols; c++ {
 			header[c] = ""
@@ -143,7 +143,7 @@ func writeMarkdown(w io.Writer, t *Table, fill, raw bool) error {
 		_, err := io.WriteString(w, sb.String())
 		return err
 	}
-	if pairs := t.Meta.pairs(); len(pairs) > 0 {
+	if pairs := t.Meta.Pairs(); len(pairs) > 0 {
 		if err := writeRow(pairs[0][:]); err != nil {
 			return err
 		}
@@ -176,13 +176,13 @@ func writeMarkdown(w io.Writer, t *Table, fill, raw bool) error {
 }
 
 func writeHTML(w io.Writer, t *Table) error {
-	occ := t.occupancy()
+	occ := t.Occupancy()
 	hdr := headerRowCount(t)
 	skip := make([][]bool, t.Rows)
 	for r := range skip {
 		skip[r] = make([]bool, t.Cols)
 	}
-	if pairs := t.Meta.pairs(); len(pairs) > 0 {
+	if pairs := t.Meta.Pairs(); len(pairs) > 0 {
 		io.WriteString(w, "<table border=\"1\" cellspacing=\"0\" cellpadding=\"2\">\n")
 		for _, p := range pairs {
 			fmt.Fprintf(w, "<tr><td>%s</td><td>%s</td></tr>\n", html.EscapeString(p[0]), html.EscapeString(p[1]))
@@ -252,7 +252,7 @@ func writeHTML(w io.Writer, t *Table) error {
 	return nil
 }
 
-type jsonCell struct {
+type JSONCell struct {
 	Row     int    `json:"row"`
 	Col     int    `json:"col"`
 	RowSpan int    `json:"rowspan"`
@@ -260,22 +260,22 @@ type jsonCell struct {
 	Text    string `json:"text"`
 }
 
-type jsonTable struct {
+type JSONTable struct {
 	SpecialtyCode string     `json:"specialty_code,omitempty"`
 	SpecialtyName string     `json:"specialty_name,omitempty"`
 	Rows          int        `json:"rows"`
 	Cols          int        `json:"cols"`
-	Cells         []jsonCell `json:"cells"`
+	Cells         []JSONCell `json:"cells"`
 }
 
 func writeJSON(w io.Writer, t *Table) error {
-	jt := jsonTable{Rows: t.Rows, Cols: t.Cols}
+	jt := JSONTable{Rows: t.Rows, Cols: t.Cols}
 	if t.Meta != nil {
 		jt.SpecialtyCode = t.Meta.Code
 		jt.SpecialtyName = t.Meta.Name
 	}
 	for _, c := range t.Cells {
-		jt.Cells = append(jt.Cells, jsonCell{
+		jt.Cells = append(jt.Cells, JSONCell{
 			Row:     c.Row,
 			Col:     c.Col,
 			RowSpan: c.RowSpan,

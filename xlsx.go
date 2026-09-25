@@ -1,6 +1,8 @@
-package main
+package pdf2table
 
 import (
+	"io"
+
 	"github.com/xuri/excelize/v2"
 )
 
@@ -9,42 +11,64 @@ const (
 	flatSheet   = "Flat"
 )
 
-func writeXLSX(path string, t *Table) error {
+func newWorkbook(t *Table) (*excelize.File, error) {
 	f := excelize.NewFile()
-	defer f.Close()
 	if err := f.SetSheetName("Sheet1", layoutSheet); err != nil {
-		return err
+		f.Close()
+		return nil, err
 	}
 	if _, err := f.NewSheet(flatSheet); err != nil {
-		return err
+		f.Close()
+		return nil, err
 	}
 	if err := writeLayoutSheet(f, t); err != nil {
-		return err
+		f.Close()
+		return nil, err
 	}
 	if err := writeFlatSheet(f, t); err != nil {
+		f.Close()
+		return nil, err
+	}
+	return f, nil
+}
+
+func (t *Table) WriteXLSX(w io.Writer) error {
+	f, err := newWorkbook(t)
+	if err != nil {
 		return err
 	}
+	defer f.Close()
+	_, err = f.WriteTo(w)
+	return err
+}
+
+func (t *Table) SaveXLSX(path string) error {
+	f, err := newWorkbook(t)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
 	return f.SaveAs(path)
 }
 
 func writeLayoutSheet(f *excelize.File, t *Table) error {
-	occ := t.occupancy()
-	spans := t.spans()
+	occ := t.Occupancy()
+	spans := t.Spans()
 	widths := make([]int, t.Cols)
 	for _, s := range spans {
-		cell := occ[s.r0][s.c0]
+		cell := occ[s.R0][s.C0]
 		if cell == nil {
 			continue
 		}
-		name, err := excelize.CoordinatesToCellName(s.c0+1, s.r0+1)
+		name, err := excelize.CoordinatesToCellName(s.C0+1, s.R0+1)
 		if err != nil {
 			return err
 		}
 		if err := f.SetCellValue(layoutSheet, name, collapse(cell.Text)); err != nil {
 			return err
 		}
-		if s.r1 > s.r0 || s.c1 > s.c0 {
-			end, err := excelize.CoordinatesToCellName(s.c1+1, s.r1+1)
+		if s.R1 > s.R0 || s.C1 > s.C0 {
+			end, err := excelize.CoordinatesToCellName(s.C1+1, s.R1+1)
 			if err != nil {
 				return err
 			}
@@ -52,9 +76,9 @@ func writeLayoutSheet(f *excelize.File, t *Table) error {
 				return err
 			}
 		}
-		if s.c0 == s.c1 {
-			if n := len([]rune(collapse(cell.Text))); n > widths[s.c0] {
-				widths[s.c0] = n
+		if s.C0 == s.C1 {
+			if n := len([]rune(collapse(cell.Text))); n > widths[s.C0] {
+				widths[s.C0] = n
 			}
 		}
 	}
@@ -65,8 +89,8 @@ func writeLayoutSheet(f *excelize.File, t *Table) error {
 }
 
 func writeFlatSheet(f *excelize.File, t *Table) error {
-	header, rows := t.normalize()
-	pairs := t.Meta.pairs()
+	header, rows := t.Normalize()
+	pairs := t.Meta.Pairs()
 	for i, p := range pairs {
 		if err := f.SetCellValue(flatSheet, cellName(1, i+1), p[0]); err != nil {
 			return err

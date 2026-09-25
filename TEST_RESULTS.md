@@ -8,6 +8,48 @@
 
 ---
 
+## Прогон: 2026-09-25 07:17 MSK (+0300)
+
+| # | Тест | Пакет | Результат | Время |
+|---|------|-------|-----------|-------|
+| 1 | TestPublicAPI | github.com/Alice088/pdf2table | PASS | 1.78s |
+| 2 | TestUniqueSorted | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 3 | TestBand | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 4 | TestCleanText | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 5 | TestPageRunsGroupsChars | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 6 | TestParseSpecialty | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 7 | TestMetaPairs | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 8 | TestLargestTable | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 9 | TestSampleMetadata | github.com/Alice088/pdf2table | PASS | 15.56s |
+| 10 | TestSampleTextIsNotLost | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 11 | TestSampleTablesAndNormalize | github.com/Alice088/pdf2table | PASS | 0.01s |
+| 12 | TestSampleGoldenPlan | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 13 | TestSampleSplit | github.com/Alice088/pdf2table | PASS | 14.96s |
+| 14 | TestSampleWriters | github.com/Alice088/pdf2table | PASS | 1.01s |
+
+### Сводка
+
+Всего: 14
+PASS: 14
+FAIL: 0
+SKIP: 0
+Время: 33.330s
+Примечание: с учётом подтестов (по одному на каждый из 13 PDF) — 79 PASS, 0 FAIL, 0 SKIP.
+
+### Падения
+
+| Тест | Причина |
+|------|---------|
+| нет | — |
+
+Команда: `go test ./... -v -count=1`
+Go: go1.26.3 linux/amd64
+Ветка: gold
+Сэмплы: 13 golden PDF из `../energydocs` (переопределяется `PDF2TABLE_SAMPLES`).
+Проверено: публичный API библиотеки (ParseFile/ParseReader/WithSplit, Normalize/Occupancy/Spans/HeaderRows/Pairs, Write*/WriteXLSX/WriteFile по всем форматам, ошибка на неизвестный формат, ParseSpecialty); метаданные код/название для каждого PDF; отсутствие потери текста внутри сетки; прямоугольность main-таблицы; непустые колонки после normalize; golden-строки учебного плана 09.02.12; split-режим; все форматы вывода (csv/md/html/json/xlsx) с метаданными и детерминизмом.
+
+---
+
 ## Прогон: 2026-09-25 07:08 MSK (+0300)
 
 | # | Тест | Пакет | Результат | Время |

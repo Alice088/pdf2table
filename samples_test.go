@@ -1,4 +1,4 @@
-package main
+package pdf2table
 
 import (
 	"bytes"
@@ -130,7 +130,7 @@ func largest(t *testing.T, d *docData) *Table {
 	if len(d.merged) == 0 {
 		t.Fatal("document has no tables")
 	}
-	return d.merged[largestTable(d.merged)-1]
+	return d.merged[Largest(d.merged)-1]
 }
 
 func TestSampleMetadata(t *testing.T) {
@@ -193,7 +193,7 @@ func TestSampleTablesAndNormalize(t *testing.T) {
 				t.Fatalf("largest table merges overlap or leave gaps: area=%d full=%d", area, plan.Rows*plan.Cols)
 			}
 			h := headerRowCount(plan)
-			hdr, rows := plan.normalize()
+			hdr, rows := plan.Normalize()
 			if len(rows) != plan.Rows-h {
 				t.Fatalf("normalized rows=%d want %d", len(rows), plan.Rows-h)
 			}
@@ -221,7 +221,7 @@ func TestSampleGoldenPlan(t *testing.T) {
 	}
 	d := loadDoc(t, path)
 	plan := largest(t, d)
-	hdr, rows := plan.normalize()
+	hdr, rows := plan.Normalize()
 	idx := map[string]int{}
 	for i, h := range hdr {
 		idx[h] = i
@@ -285,8 +285,8 @@ func TestSampleWriters(t *testing.T) {
 		t.Run(g.file, func(t *testing.T) {
 			d := loadDoc(t, filepath.Join(dir, g.file))
 			plan := largest(t, d)
-			pairs := plan.Meta.pairs()
-			_, wantRows := plan.normalize()
+			pairs := plan.Meta.Pairs()
+			_, wantRows := plan.Normalize()
 			out := t.TempDir()
 
 			csvPath := filepath.Join(out, "t.csv")
@@ -322,7 +322,7 @@ func TestSampleWriters(t *testing.T) {
 			if err := writeOne(jsonPath, "json", plan, false, false); err != nil {
 				t.Fatalf("json: %v", err)
 			}
-			var jt jsonTable
+			var jt JSONTable
 			if err := json.Unmarshal([]byte(readFile(t, jsonPath)), &jt); err != nil {
 				t.Fatalf("json decode: %v", err)
 			}
@@ -382,6 +382,10 @@ func TestSampleWriters(t *testing.T) {
 			}
 		})
 	}
+}
+
+func writeOne(path, ext string, t *Table, fill, raw bool) error {
+	return t.WriteFile(path, WithFill(fill), WithRaw(raw))
 }
 
 func readCSV(t *testing.T, path string) [][]string {

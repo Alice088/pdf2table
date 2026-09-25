@@ -10,12 +10,46 @@ and vertical grid lines are collected, and the table is rebuilt as a real
 matrix. Merged cells are recovered by union-find: wherever an internal border
 is missing, adjacent grid cells are fused into one cell with `rowspan`/`colspan`.
 
+## Install
+
+```sh
+go install github.com/Alice088/pdf2table/cmd/pdf2table@latest
+```
+
 ## Build
 
 ```sh
-cd pdf2table
-go build -o pdf2table .
+go build -o pdf2table ./cmd/pdf2table
 ```
+
+## Library
+
+```go
+import pdf2table "github.com/Alice088/pdf2table"
+
+tables, err := pdf2table.ParseFile("plan.pdf", pdf2table.WithSplit(false))
+if err != nil {
+	log.Fatal(err)
+}
+t := tables[pdf2table.Largest(tables)-1]
+
+header, rows := t.Normalize()
+fmt.Println(header, rows)
+
+f, _ := os.Create("plan.csv")
+defer f.Close()
+t.WriteCSV(f, pdf2table.WithFill(true))
+t.WriteJSON(f)
+t.SaveXLSX("plan.xlsx")
+```
+
+`ParseReader(io.ReaderAt, size int64)` parses an in-memory or streamed document, and
+`Parse(*pdf.Reader)` reuses an already opened reader. Per-format writers accept any
+`io.Writer`: `WriteCSV`, `WriteMarkdown`, `WriteHTML`, `WriteJSON`, `WriteXLSX`.
+`SaveXLSX(path)` and `WriteFile(path)` write to disk (`WriteFile` picks the format
+from the extension). `Normalize()` returns the flattened single-header view,
+`Occupancy()` the resolved merged-cell matrix and `Spans()` the merged-cell
+rectangles.
 
 ## Usage
 

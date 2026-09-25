@@ -1,4 +1,4 @@
-package main
+package pdf2table
 
 import (
 	"regexp"
@@ -13,7 +13,7 @@ type Meta struct {
 
 var specialtyRe = regexp.MustCompile(`^\s*(?:Направление\s+)?(\d{2}\.\d{2}\.\d{2})\s*([А-ЯЁA-Z].*?)\s*$`)
 
-func parseSpecialty(s string) (string, string, bool) {
+func ParseSpecialty(s string) (string, string, bool) {
 	sub := specialtyRe.FindStringSubmatch(s)
 	if sub == nil {
 		return "", "", false
@@ -24,7 +24,7 @@ func parseSpecialty(s string) (string, string, bool) {
 func extractMeta(r *pdf.Reader) *Meta {
 	for p := 1; p <= r.NumPage(); p++ {
 		for _, rn := range pageRuns(r.Page(p).Content()) {
-			code, name, ok := parseSpecialty(rn.Text)
+			code, name, ok := ParseSpecialty(rn.Text)
 			if !ok {
 				continue
 			}
@@ -34,7 +34,7 @@ func extractMeta(r *pdf.Reader) *Meta {
 	return nil
 }
 
-func (m *Meta) pairs() [][2]string {
+func (m *Meta) Pairs() [][2]string {
 	if m == nil {
 		return nil
 	}

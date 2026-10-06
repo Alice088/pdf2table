@@ -8,6 +8,52 @@
 
 ---
 
+## Прогон: 2026-10-06 21:04 MSK (+0300)
+
+- Изменения:
+  - `extract.go` — `pageRuns` теперь разрезает прогон по реальному межглифовому зазору (`X - (prevX + prevW) > spaceTol * FontSize`), а не по жёсткому `|ΔX| <= 0.25`. В PDF с Type0-шрифтами без `/Widths` (`.plx`, ЦИП) координата X глифов «плывёт» на 2-3 pt, из-за чего слова рвались («Русс кий язык», «Экза мен», «СЕТЕВ ОЕ И СИС ТЕМНОЕ»).
+  - `extract.go` — пробельные прогоны глифов больше не выбрасываются, а сохраняются как `" "` (кроме переводов строк), иначе в вертикальных (повёрнутых) подписях терялись пробелы.
+  - `extract.go` — `TextRun` получил `Size` (кегль), нужен для оценки зазора и вертикального шага.
+  - `table.go` — `cleanText` принимает `[]TextRun` и склеивает подряд идущие однocимвольные прогоны с общим X (повёрнутая вертикальная подпись) без пробела: «О б ъ е м» → «Объем»; многосимвольные прогоны разных строк по-прежнему разделяются пробелом, поэтому стопки чисел («12222 22224 4») не склеиваются.
+  - `extract_test.go` — `TestCleanText` расширен под новый контракт `cleanText` и вертикальную склейку.
+- Команды:
+  - `gofmt -l .`
+  - `PDF2TABLE_SAMPLES=/home/fworld/energydocs go test ./... -v`
+- Go: `go1.27.1 linux/amd64`
+- Ветка: `main`
+
+| # | Тест | Пакет | Результат | Время |
+|---|------|-------|-----------|-------|
+| 1 | TestPublicAPI | github.com/Alice088/pdf2table | PASS | 1.77s |
+| 2 | TestUniqueSorted | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 3 | TestBand | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 4 | TestCleanText | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 5 | TestPageRunsGroupsChars | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 6 | TestParseSpecialty | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 7 | TestMetaPairs | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 8 | TestLargestTable | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 9 | TestSampleMetadata | github.com/Alice088/pdf2table | PASS | 15.08s |
+| 10 | TestSampleTextIsNotLost | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 11 | TestSampleTablesAndNormalize | github.com/Alice088/pdf2table | PASS | 0.01s |
+| 12 | TestSamplePlanHeader | github.com/Alice088/pdf2table | PASS | 0.01s |
+| 13 | TestSampleGoldenPlan | github.com/Alice088/pdf2table | PASS | 0.00s |
+| 14 | TestSampleSplit | github.com/Alice088/pdf2table | PASS | 14.23s |
+| 15 | TestSampleWriters | github.com/Alice088/pdf2table | PASS | 0.94s |
+
+### Сводка
+
+- Всего: 15
+- PASS: 15
+- FAIL: 0
+- SKIP: 0
+- Время: 32.022s
+
+### Падения
+
+нет
+
+---
+
 ## Прогон: 2026-09-25 11:42 MSK (+0300)
 
 - Изменения:

@@ -41,9 +41,13 @@ func TestBand(t *testing.T) {
 }
 
 func TestCleanText(t *testing.T) {
-	got := cleanText([]string{"  Привет ", "", " мир "})
+	got := cleanText([]TextRun{{X: 1, Y: 2, Text: "  Привет "}, {}, {X: 5, Y: 2, Text: " мир "}})
 	if got != "Привет мир" {
 		t.Fatalf("got %q", got)
+	}
+	stacked := cleanText([]TextRun{{X: 1, Y: 2, Size: 10, Text: "О"}, {X: 1, Y: 6, Size: 10, Text: "б"}})
+	if stacked != "Об" {
+		t.Fatalf("stacked got %q", stacked)
 	}
 }
 

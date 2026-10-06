@@ -59,7 +59,7 @@ func buildPageTable(p pdf.Page) *Table {
 			}
 		}
 	}
-	texts := map[int][]string{}
+	texts := map[int][]TextRun{}
 	for _, rn := range pageRuns(c) {
 		i := band(rn.X, g.Xs)
 		j := band(rn.Y, g.Ys)
@@ -67,7 +67,7 @@ func buildPageTable(p pdf.Page) *Table {
 			continue
 		}
 		root := g.find(g.cell(i, j))
-		texts[root] = append(texts[root], rn.Text)
+		texts[root] = append(texts[root], rn)
 	}
 	t := &Table{Rows: g.height, Cols: g.width, Xs: g.Xs}
 	t.Grid = make([][]*Cell, t.Rows)
@@ -91,15 +91,44 @@ func buildPageTable(p pdf.Page) *Table {
 	return t
 }
 
-func cleanText(parts []string) string {
-	var out []string
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			out = append(out, p)
+func cleanText(parts []TextRun) string {
+	var sb strings.Builder
+	var prev TextRun
+	havePrev, lastSpace := false, false
+	for _, part := range parts {
+		text := strings.TrimSpace(part.Text)
+		if text == "" {
+			if part.Text != "" && sb.Len() > 0 && !lastSpace {
+				sb.WriteByte(' ')
+				lastSpace = true
+			}
+			continue
 		}
+		part.Text = text
+		if sb.Len() > 0 && !lastSpace && !(havePrev && stackedRuns(&prev, &part)) {
+			sb.WriteByte(' ')
+		}
+		sb.WriteString(text)
+		prev, havePrev, lastSpace = part, true, false
 	}
-	return strings.Join(out, " ")
+	return sb.String()
+}
+
+func stackedRuns(a, b *TextRun) bool {
+	if a == nil {
+		return false
+	}
+	if len([]rune(a.Text)) != 1 || len([]rune(b.Text)) != 1 {
+		return false
+	}
+	if absf(a.X-b.X) > bandTol {
+		return false
+	}
+	size := b.Size
+	if size <= 0 {
+		size = a.Size
+	}
+	return size <= 0 || absf(a.Y-b.Y) <= size
 }
 
 func (t *Table) rowSig(r int) string {

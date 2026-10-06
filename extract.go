@@ -17,6 +17,7 @@ type VLine struct {
 
 type TextRun struct {
 	X, Y float64
+	Size float64
 	Text string
 }
 
@@ -24,7 +25,16 @@ const (
 	lineTol  = 2.0
 	coordTol = 0.25
 	bandTol  = 0.9
+	spaceTol = 0.25
+	backTol  = 1.5
 )
+
+func spaceGap(size float64) float64 {
+	if g := spaceTol * size; g > 0.5 {
+		return g
+	}
+	return 0.5
+}
 
 func absf(x float64) float64 {
 	if x < 0 {
@@ -68,15 +78,28 @@ func pageRuns(c pdf.Content) []TextRun {
 		t := c.Text[i]
 		j := i
 		var sb strings.Builder
-		for j < len(c.Text) && absf(c.Text[j].X-t.X) <= coordTol && absf(c.Text[j].Y-t.Y) <= coordTol {
+		prevX, prevW := t.X, t.W
+		for j < len(c.Text) && absf(c.Text[j].Y-t.Y) <= coordTol {
+			if j > i {
+				gap := c.Text[j].X - (prevX + prevW)
+				if gap > spaceGap(t.FontSize) || gap < -backTol {
+					break
+				}
+			}
 			sb.WriteString(c.Text[j].S)
+			prevX, prevW = c.Text[j].X, c.Text[j].W
 			j++
 		}
 		i = j
 		s := strings.TrimRight(sb.String(), "\uFFFD")
-		s = strings.TrimSpace(s)
-		if s != "" {
-			out = append(out, TextRun{X: t.X, Y: t.Y, Text: s})
+		trimmed := strings.TrimSpace(s)
+		switch {
+		case trimmed == "":
+			if s != "" && !strings.ContainsAny(s, "\n\r") {
+				out = append(out, TextRun{X: t.X, Y: t.Y, Size: t.FontSize, Text: " "})
+			}
+		default:
+			out = append(out, TextRun{X: t.X, Y: t.Y, Size: t.FontSize, Text: trimmed})
 		}
 	}
 	return out
